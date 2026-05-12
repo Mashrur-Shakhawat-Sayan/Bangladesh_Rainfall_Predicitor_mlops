@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bangladesh Rainfall Predictor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Segoe UI", sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+            background: #060914;
+        }
+
+        body.sunny {
+            background:
+                radial-gradient(circle at 82% 18%, rgba(250, 204, 21, 0.26), transparent 18%),
+                radial-gradient(circle at 18% 82%, rgba(251, 146, 60, 0.16), transparent 28%),
+                linear-gradient(135deg, #06121f, #123456, #0f766e);
+        }
+
+        body.rainy {
+            background:
+                radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.12), transparent 25%),
+                linear-gradient(135deg, #05070d, #0f2027, #203a43, #2c5364);
+        }
+
+        body.normal {
+            background:
+                radial-gradient(circle at 75% 20%, rgba(45, 212, 191, 0.18), transparent 25%),
+                linear-gradient(135deg, #07111f, #102a43, #0f766e);
+        }
+
+        .bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .temp-vibe {
+            position: absolute;
+            inset: 0;
+            opacity: 0.55;
+        }
+
+        .temp-vibe.hot {
+            background:
+                radial-gradient(circle at 15% 30%, rgba(249, 115, 22, 0.26), transparent 22%),
+                radial-gradient(circle at 90% 70%, rgba(239, 68, 68, 0.22), transparent 25%);
+            animation: heatMove 4s infinite alternate ease-in-out;
+        }
+
+        .temp-vibe.cool {
+            background:
+                radial-gradient(circle at 20% 30%, rgba(186, 230, 253, 0.18), transparent 25%),
+                radial-gradient(circle at 80% 65%, rgba(147, 197, 253, 0.2), transparent 28%);
+            filter: blur(2px);
+        }
+
+        .temp-vibe.mild {
+            background:
+                radial-gradient(circle at 30% 20%, rgba(34, 197, 94, 0.14), transparent 25%),
+                radial-gradient(circle at 80% 70%, rgba(56, 189, 248, 0.14), transparent 25%);
+        }
+
+        @keyframes heatMove {
+            from {
+                transform: scale(1);
+                filter: blur(0);
+            }
+            to {
+                transform: scale(1.06);
+                filter: blur(3px);
+            }
+        }
+
+        .rain span {
+            position: absolute;
+            top: -100px;
+            width: 2px;
+            height: 85px;
+            background: rgba(173, 216, 230, 0.75);
+            animation: rainFall linear infinite;
+        }
+
+        @keyframes rainFall {
+            to {
+                transform: translateY(120vh);
+            }
+        }
+
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 1180px;
+            margin: auto;
+            padding: 50px 20px;
+        }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+        .hero h1 {
+            font-size: 46px;
+            margin-bottom: 10px;
+        }
+
+        .hero p {
+            color: #cbd5e1;
+            font-size: 18px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 0.85fr 1.4fr;
+            gap: 25px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.09);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            backdrop-filter: blur(18px);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.35);
+        }
+
+        label {
+            display: block;
+            margin-top: 18px;
+            margin-bottom: 8px;
+            color: #dbeafe;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px;
+            border-radius: 14px;
+            border: none;
+            outline: none;
+            background: rgba(255, 255, 255, 0.14);
+            color: white;
+            font-size: 16px;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 16px;
+            padding: 15px;
+            border: none;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #38bdf8, #2563eb);
+            color: white;
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(56, 189, 248, 0.35);
+        }
+
+        .month-toggle {
+            margin-top: 10px;
+            background: rgba(255, 255, 255, 0.14);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .month-panel {
+            display: none;
+            margin-top: 18px;
+            padding: 18px;
+            border-radius: 22px;
+            background: rgba(0, 0, 0, 0.24);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            animation: monthPop 0.22s ease;
+        }
+
+        .month-panel.open {
+            display: block;
+        }
+
+        @keyframes monthPop {
+            from {
+                opacity: 0;
+                transform: translateY(-8px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .month-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .month-card {
+            margin: 0;
+            padding: 14px 8px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: white;
+            font-weight: 800;
+            font-size: 15px;
+            cursor: pointer;
+            transition: 0.25s;
+        }
+
+        .month-card:hover {
+            background: rgba(56, 189, 248, 0.24);
+            transform: translateY(-2px);
+        }
+
+        .month-card.active {
+            background: linear-gradient(135deg, #38bdf8, #2563eb);
+            box-shadow: 0 0 24px rgba(56, 189, 248, 0.45);
+        }
+
+        .interval-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .interval-options input {
+            display: none;
+        }
+
+        .interval-options label {
+            margin: 0;
+            text-align: center;
+            padding: 12px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.12);
+            cursor: pointer;
+            transition: 0.25s;
+        }
+
+        .interval-options input:checked + label {
+            background: linear-gradient(135deg, #38bdf8, #2563eb);
+            box-shadow: 0 0 22px rgba(56, 189, 248, 0.35);
+        }
+
+        .result {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 18px;
+            background: rgba(0, 0, 0, 0.25);
+            text-align: center;
+        }
+
+        .result h2 {
+            color: #7dd3fc;
+            font-size: 23px;
+        }
+
+        .meter-box {
+            margin-top: 18px;
+            text-align: left;
+        }
+
+        .meter-box p {
+            margin-top: 12px;
+            margin-bottom: 6px;
+            color: #e0f2fe;
+            font-weight: 600;
+        }
+
+        .meter {
+            width: 100%;
+            height: 14px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .meter-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #22c55e, #38bdf8);
+            border-radius: 999px;
+        }
+
+        .meter-fill.rain {
+            background: linear-gradient(135deg, #38bdf8, #2563eb);
+        }
+
+        .meter-fill.sun {
+            background: linear-gradient(135deg, #facc15, #fb923c);
+        }
+
+        .range-text {
+            font-size: 14px;
+            color: #cbd5e1 !important;
+        }
+
+        .chart-box {
+            min-height: 720px;
+        }
+
+        .chart-note {
+            margin-top: 8px;
+            margin-bottom: 16px;
+            color: #cbd5e1;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 455px !important;
+        }
+
+        .graph-summary {
+            margin-top: 22px;
+            padding: 18px;
+            border-radius: 18px;
+            background: rgba(0, 0, 0, 0.28);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .graph-summary h3 {
+            color: #7dd3fc;
+            margin-bottom: 10px;
+        }
+
+        .graph-summary p {
+            color: #e2e8f0;
+            margin-bottom: 8px;
+            line-height: 1.5;
+            font-size: 15px;
+        }
+
+        @media(max-width: 900px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero h1 {
+                font-size: 34px;
+            }
+
+            .month-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+
+<body class="{{ weather_mode if weather_mode else 'normal' }}">
+
+    <div class="bg">
+        <div class="temp-vibe {{ temperature_mode if temperature_mode else 'mild' }}"></div>
+
+        {% if weather_mode == "rainy" %}
+            <div class="rain">
+                {% for i in range(55) %}
+                    <span style="left: {{ i * 1.9 }}%; animation-duration: {{ 0.7 + (i % 5) * 0.18 }}s; animation-delay: {{ (i % 8) * 0.2 }}s;"></span>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="container">
+        <div class="hero">
+            <h1>Bangladesh Rainfall Predictor</h1>
+            <p>Forecast rainfall and compare it with historical and projected climate trends</p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Forecast Input</h2>
+
+                <form action="/predict" method="post">
+                    <label>Month</label>
+
+                    <input type="hidden" name="month" id="selectedMonth" value="{{ month if month else 1 }}">
+
+                    <button type="button" class="month-toggle" id="monthToggle">
+                        Selected Month:
+                        <span id="selectedMonthText">{{ month_name if month_name else "January" }}</span>
+                    </button>
+
+                    <div class="month-panel" id="monthPanel">
+                        <div class="month-grid">
+                            <button type="button" class="month-card {% if month == 1 or not month %}active{% endif %}" data-month="1">January</button>
+                            <button type="button" class="month-card {% if month == 2 %}active{% endif %}" data-month="2">February</button>
+                            <button type="button" class="month-card {% if month == 3 %}active{% endif %}" data-month="3">March</button>
+                            <button type="button" class="month-card {% if month == 4 %}active{% endif %}" data-month="4">April</button>
+                            <button type="button" class="month-card {% if month == 5 %}active{% endif %}" data-month="5">May</button>
+                            <button type="button" class="month-card {% if month == 6 %}active{% endif %}" data-month="6">June</button>
+                            <button type="button" class="month-card {% if month == 7 %}active{% endif %}" data-month="7">July</button>
+                            <button type="button" class="month-card {% if month == 8 %}active{% endif %}" data-month="8">August</button>
+                            <button type="button" class="month-card {% if month == 9 %}active{% endif %}" data-month="9">September</button>
+                            <button type="button" class="month-card {% if month == 10 %}active{% endif %}" data-month="10">October</button>
+                            <button type="button" class="month-card {% if month == 11 %}active{% endif %}" data-month="11">November</button>
+                            <button type="button" class="month-card {% if month == 12 %}active{% endif %}" data-month="12">December</button>
+                        </div>
+                    </div>
+
+                    <label>Year</label>
+                    <input type="number" name="year" min="1901" max="2100" value="{{ year if year else '' }}" placeholder="Example: 2078" required>
+
+                    <label>Graph Style</label>
+                    <div class="interval-options">
+                        <input type="radio" name="interval" id="interval5" value="5" {% if interval == 5 %}checked{% endif %}>
+                        <label for="interval5">5-Year Avg</label>
+
+                        <input type="radio" name="interval" id="interval10" value="10" {% if interval == 10 or not interval %}checked{% endif %}>
+                        <label for="interval10">10-Year Avg</label>
+                    </div>
+
+                    <button type="submit">Predict Rainfall</button>
+                </form>
+
+                {% if prediction_text %}
+                    <div class="result">
+                        <h2>{{ prediction_text }}</h2>
+
+                        <div class="meter-box">
+                            <p>Model Confidence: {{ confidence }}%</p>
+                            <div class="meter">
+                                <div class="meter-fill" style="width: {{ confidence }}%;"></div>
+                            </div>
+
+                            <p>Chance of rain happening at least once in {{ month_name }}: {{ rain_chance }}%</p>
+                            <div class="meter">
+                                <div class="meter-fill rain" style="width: {{ rain_chance }}%;"></div>
+                            </div>
+
+                            <p>Chance of no rain happening in {{ month_name }}: {{ no_rain_chance }}%</p>
+                            <div class="meter">
+                                <div class="meter-fill sun" style="width: {{ no_rain_chance }}%;"></div>
+                            </div>
+
+                            <p class="range-text">
+                                Expected rainfall range: {{ yhat_lower }} mm to {{ yhat_upper }} mm
+                            </p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="card chart-box">
+                <h2>
+                    Rainfall and Temperature Trend
+                    {% if month_name and year %}
+                        for {{ month_name }} until {{ year }}
+                    {% endif %}
+                </h2>
+
+                <p class="chart-note">
+                    Blue bars show historical rainfall. Orange bars show predicted rainfall after the dataset ends.
+                    Pink line shows historical temperature. Yellow dashed line shows projected temperature trend.
+                </p>
+
+                <canvas id="climateChart"></canvas>
+
+                {% if temp_summary %}
+                    <div class="graph-summary">
+                        <h3>Trend Summary</h3>
+                        <p>{{ temp_summary }}</p>
+                        <p>{{ rain_summary }}</p>
+                        <p>{{ climate_note }}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const monthToggle = document.getElementById("monthToggle");
+        const monthPanel = document.getElementById("monthPanel");
+        const monthButtons = document.querySelectorAll(".month-card");
+        const selectedMonth = document.getElementById("selectedMonth");
+        const selectedMonthText = document.getElementById("selectedMonthText");
+
+        const monthNames = {
+            1: "January",
+            2: "February",
+            3: "March",
+            4: "April",
+            5: "May",
+            6: "June",
+            7: "July",
+            8: "August",
+            9: "September",
+            10: "October",
+            11: "November",
+            12: "December"
+        };
+
+        monthToggle.addEventListener("click", () => {
+            monthPanel.classList.toggle("open");
+        });
+
+        monthButtons.forEach(button => {
+            button.addEventListener("click", () => {
+                monthButtons.forEach(btn => btn.classList.remove("active"));
+                button.classList.add("active");
+
+                const month = Number(button.dataset.month);
+
+                selectedMonth.value = month;
+                selectedMonthText.textContent = monthNames[month];
+
+                monthPanel.classList.remove("open");
+            });
+        });
+
+        const labels = {{ period_labels|default([])|tojson }};
+        const historicalAvgRainfall = {{ historical_avg_rainfall|default([])|tojson }};
+        const forecastAvgRainfall = {{ forecast_avg_rainfall|default([])|tojson }};
+        const historicalAvgTemperature = {{ historical_avg_temperature|default([])|tojson }};
+        const forecastAvgTemperature = {{ forecast_avg_temperature|default([])|tojson }};
+
+        const ctx = document.getElementById("climateChart");
+
+        new Chart(ctx, {
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        type: "bar",
+                        label: "Historical Avg Rainfall mm",
+                        data: historicalAvgRainfall,
+                        borderWidth: 1,
+                        yAxisID: "yRain"
+                    },
+                    {
+                        type: "bar",
+                        label: "Predicted Avg Rainfall mm",
+                        data: forecastAvgRainfall,
+                        borderWidth: 1,
+                        yAxisID: "yRain"
+                    },
+                    {
+                        type: "line",
+                        label: "Historical Avg Temperature °C",
+                        data: historicalAvgTemperature,
+                        borderWidth: 3,
+                        tension: 0.35,
+                        pointRadius: 4,
+                        yAxisID: "yTemp"
+                    },
+                    {
+                        type: "line",
+                        label: "Projected Temperature °C",
+                        data: forecastAvgTemperature,
+                        borderWidth: 3,
+                        borderDash: [6, 6],
+                        tension: 0.35,
+                        pointRadius: 4,
+                        yAxisID: "yTemp"
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: "index",
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: "white",
+                            font: {
+                                size: 13
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || "";
+                                const value = context.parsed.y;
+
+                                if (value === null) {
+                                    return null;
+                                }
+
+                                if (label.includes("Temperature")) {
+                                    return `${label}: ${value} °C`;
+                                }
+
+                                return `${label}: ${value} mm`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: "white",
+                            maxRotation: 45,
+                            minRotation: 0
+                        },
+                        grid: {
+                            color: "rgba(255, 255, 255, 0.08)"
+                        }
+                    },
+                    yRain: {
+                        type: "linear",
+                        position: "left",
+                        title: {
+                            display: true,
+                            text: "Rainfall mm",
+                            color: "white"
+                        },
+                        ticks: {
+                            color: "white"
+                        },
+                        grid: {
+                            color: "rgba(255, 255, 255, 0.1)"
+                        }
+                    },
+                    yTemp: {
+                        type: "linear",
+                        position: "right",
+                        title: {
+                            display: true,
+                            text: "Temperature °C",
+                            color: "white"
+                        },
+                        ticks: {
+                            color: "white"
+                        },
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
